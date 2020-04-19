@@ -1,0 +1,236 @@
+---
+title: "Final Project"
+output: html_document
+author: "Jiacheng Zhu"
+---
+
+```{r,include=FALSE}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, dplyr, lubridate, stringr, readxl, data.table, gdata,stargazer)
+library(ivpack)
+```
+#Obesity and Smoking
+```{r}
+path.data.final="/Volumes/Transcend/2020Spring/Econ 470/Econ 470 dataset/Smoking and Obesity/Final"
+final.data <- read_rds(paste0(path.data.final,"/smoking_obesity_data.rds"))
+obesity.data <- read_rds(paste0(path.data.final,"/obesity_data.rds"))
+```
+
+```{r,include= FALSE}
+obesity.data$obesity <- as.numeric(obesity.data$obesity)
+obesity.data$overweight <- as.numeric(obesity.data$overweight)
+obesity.data$normal <- as.numeric(obesity.data$normal)
+obesity.data$underweight <- as.numeric(obesity.data$underweight)
+```
+
+```{r}
+
+obesity.data %>% filter(state == "US") %>%
+  ggplot(aes(x=Year))+
+  geom_line(aes(y = obesity), color = "red") +
+  geom_line(aes(y= overweight), color = "orange")+
+  geom_line(aes(y=normal), color = "green")+
+  geom_line(aes(y=underweight),color = "yellow")+
+  labs(
+    x = "Year",
+    y = "Obesity rate",
+    title = "Obesity rate across the nation since 2011"
+  )+
+  theme_bw()
+
+```
+
+```{r}
+obesity.data <- obesity.data %>% mutate(unhealthy = obesity+ overweight+underweight,healthy = normal)
+obesity.data %>% filter(state == "US") %>%
+  ggplot(aes(x=Year))+
+  geom_line(aes(y = healthy), color = "green") +
+  geom_line(aes(y= unhealthy), color = "red")+
+  labs(x="Year",
+       y="Percentage",
+       title  = "Healthy BMI vs. Unhealthy BMI")+
+  theme_bw()
+
+```
+
+```{r}
+
+final.data %>% group_by(Year) %>% filter(Year>2010) %>%
+  ggplot(aes(x=as.factor(Year),y=obesity))+
+  labs(x="Year",
+       y="Obesity rate",
+       title="Obesity rate distribution over time")+
+  geom_boxplot()+
+    theme_bw()
+```
+
+```{r,include=FALSE}
+final.data$obesity <- as.numeric(final.data$obesity)
+final.data$overweight <- as.numeric(final.data$overweight)
+final.data$normal <- as.numeric(final.data$normal)
+final.data$underweight <- as.numeric(final.data$underweight)
+```
+
+```{r,warning=FALSE}
+final.data <-final.data %>% mutate(unhealthy = obesity+ overweight+underweight,healthy = normal)
+
+final.data %>% group_by(Year) %>% filter(Year>2010) %>%
+  ggplot(aes(x=as.factor(Year),y=unhealthy))+
+  labs(x="Year",
+       y="Unhealthy BMI rate",
+       title="unhealthy BMI rate distribution over time")+
+  geom_boxplot()+
+    theme_bw()
+
+```
+
+```{r}
+final.data %>% ungroup %>% group_by(Year) %>% filter(Year>2010) %>% 
+  summarise(mean=mean(sales_per_capita)) %>%
+  ggplot(aes(x = Year, y = mean))+
+  geom_line(aes(group=1)) +
+  labs(
+    x = "Year",
+    y = "Sales Per capita",
+    title = "Average Sales per Year"
+  )+
+  theme_bw()
+
+```
+
+```{r}
+final.data = final.data %>% mutate(tax_cpi= tax_dollar*(230/index))
+final.data %>%filter(Year>2010)%>%
+  ggplot(aes(x=Year, y=price_cpi)) +
+    stat_summary(fun= "mean",geom = "line") +
+  labs(
+    x = "Year",
+    y = "price",
+    title = "price in 2012 real dollars"
+  )+
+  theme_bw()
+
+```
+
+```{r}
+low10.sales = final.data %>% ungroup %>% group_by(state) %>% filter(Year >2010) %>% 
+ summarise(mean_sales = mean(sales_per_capita)) %>% arrange(mean_sales) %>% head(10)
+
+top10.sales = final.data %>% ungroup%>% group_by(state) %>% filter(Year>2010) %>% 
+  summarise(mean_sales = mean(sales_per_capita)) %>% arrange(mean_sales) %>% tail(10)
+
+```
+
+```{r,include=FALSE}
+top10.sales <- top10.sales %>% mutate(group_sales = "high")
+low10.sales <- low10.sales %>% mutate(group_sales ="low")
+sales.group <- rbind(top10.sales,low10.sales)
+top.bottom.sales <- final.data %>% inner_join(sales.group %>% select(state,group_sales),by="state")
+```
+
+```{r}
+top.bottom.sales %>% filter(group_sales == "high" & Year >2010) %>% 
+  ggplot(aes(x=Year, y = sales_per_capita,color = state))+
+    stat_summary(fun="mean",geom="line") +
+  labs(
+    x="Year",
+    y="Packs per Capita",
+    color="State",
+    title = "top 10 states with highest tobacco sales per capita "
+  ) + theme_bw()
+```
+
+```{r}
+top.bottom.sales %>% filter(group_sales == "low" & Year >2010) %>% 
+  ggplot(aes(x=Year, y = sales_per_capita,color = state))+
+    stat_summary(fun="mean",geom="line") +
+  labs(
+    x="Year",
+    y="Packs per Capita",
+    color="State",
+    title = "top 10 states with lowest tobacco sales per capita"
+  ) + theme_bw()
+
+```
+
+
+
+```{r}
+low10.obesity <- final.data %>% ungroup %>% group_by(state) %>% filter(Year>2010) %>% 
+  summarise(mean_obesity = mean(obesity)) %>%arrange(mean_obesity) %>% head(10)
+top10.obesity <- final.data %>% ungroup %>% group_by(state) %>% filter(Year>2010) %>%
+  summarise(mean_obesity = mean(obesity)) %>%arrange(mean_obesity) %>% tail(10)
+
+```
+
+```{r}
+top10.obesity <- top10.obesity %>% mutate(group_obesity = "high")
+low10.obesity <- low10.obesity %>% mutate(group_obesity ="low")
+obesity.group <- rbind(top10.obesity,low10.obesity)
+top.bottom.obesity <- final.data %>% inner_join(obesity.group %>% select(state,group_obesity),by="state")
+
+```
+
+```{r}
+top.bottom.obesity %>% filter(group_obesity == "high"&Year>2010) %>% 
+  ggplot(aes(x=Year, y = obesity,color = state))+
+    stat_summary(fun="mean",geom="line") +
+  labs(
+    x="Year",
+    y="Percentage",
+    color="State",
+    title = "top 10 states with highest obesity rates "
+  ) + theme_bw()
+
+```
+
+```{r}
+top.bottom.obesity %>% filter(group_obesity == "low"&Year>2010) %>% 
+  ggplot(aes(x=Year, y = obesity,color = state))+
+    stat_summary(fun="mean",geom="line") +
+  labs(
+    x="Year",
+    y="Percentage",
+    color="State",
+    title = "top 10 states with lowest obesity rates "
+  ) + theme_bw()
+
+```
+
+```{r}
+low10.unhealthy <- final.data %>% ungroup %>% group_by(state) %>% filter(Year>2010) %>% 
+  summarise(mean_unhealthy = mean(unhealthy)) %>%arrange( mean_unhealthy) %>% head(10)
+top10.unhealthy <- final.data %>% ungroup %>% group_by(state) %>% filter(Year>2010) %>%
+  summarise(mean_unhealthy = mean(unhealthy)) %>%arrange(mean_unhealthy) %>% tail(10)
+```
+
+```{r}
+top10.sales %>%select(state)
+top10.obesity %>% select(state)
+top10.unhealthy %>%select(state)
+```
+
+```{r}
+low10.sales %>% select(state)
+low10.obesity %>% select(state)
+low10.unhealthy %>% select(state)
+```
+
+ATEs
+```{r}
+final.data <- final.data %>% mutate(ln_sales = log(sales_per_capita), ln_price = log(price_cpi))
+
+ols1 <- lm(obesity~ln_sales, data=final.data %>% filter(Year>2010))
+iv1 <- ivreg(obesity~ln_sales|ln_price, data=final.data %>% filter(Year>2010))
+
+```
+
+```{r ols1, echo=FALSE, results='asis'}
+stargazer(ols1, type="html", label="tab:ols1")
+```
+
+```{r}
+first.stage <- lm(ln_sales~ln_price, data=final.data %>% filter(Year>2010))
+reduced.form <- lm(obesity~ln_price, data =final.data %>% filter(Year>2010))
+```
+
